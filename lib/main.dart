@@ -91,6 +91,7 @@ class HomePage extends StatelessWidget {
                   GuestBook(
                     addMessage: (String message) =>
                         appState.addMessageToGuestBook(message),
+                    messages: appState.guestBookMessages, // new
                   ),
                 ],
               ],
@@ -108,14 +109,37 @@ class ApplicationState extends ChangeNotifier {
     init();
   }
 
+
   Future<void> init() async { //초기화
     await Firebase.initializeApp();
 
     FirebaseAuth.instance.userChanges().listen((user) {
       if (user != null) {
         _loginState = ApplicationLoginState.loggedIn;
+        // Add from here
+        _guestBookSubscription = FirebaseFirestore.instance
+            .collection('guestbook')
+            .orderBy('timestamp', descending: true)
+            .snapshots()
+            .listen((snapshot) {
+          _guestBookMessages = [];
+          snapshot.docs.forEach((document) {
+            _guestBookMessages.add(
+              GuestBookMessage(
+                name: document.data()['name'] as String,
+                message: document.data()['text'] as String,
+              ),
+            );
+          });
+          notifyListeners();
+        });
+        // to here.
       } else {
         _loginState = ApplicationLoginState.loggedOut;
+        // Add from here
+        _guestBookMessages = [];
+        _guestBookSubscription?.cancel();
+        // to here.
       }
       notifyListeners();
     });
@@ -126,6 +150,10 @@ class ApplicationState extends ChangeNotifier {
 
   String? _email;
   String? get email => _email;
+
+  StreamSubscription<QuerySnapshot>? _guestBookSubscription;
+  List<GuestBookMessage> _guestBookMessages = [];
+  List<GuestBookMessage> get guestBookMessages => _guestBookMessages;
 
   void startLoginFlow() {
     _loginState = ApplicationLoginState.emailAddress;
@@ -191,7 +219,7 @@ class ApplicationState extends ChangeNotifier {
       throw Exception('Must be logged in');
     }
 
-    return FirebaseFirestore.instance.collection('guestbook2').add(<String, dynamic>{
+    return FirebaseFirestore.instance.collection('guestbook').add(<String, dynamic>{
       'text': message,
       'timestamp': DateTime.now().millisecondsSinceEpoch,
       'name': FirebaseAuth.instance.currentUser!.displayName,
@@ -202,9 +230,17 @@ class ApplicationState extends ChangeNotifier {
 // To here
 }
 
+class GuestBookMessage {
+  GuestBookMessage({required this.name, required this.message});
+  final String name;
+  final String message;
+}
+
 class GuestBook extends StatefulWidget {
-  GuestBook({required this.addMessage});
+// Modify the following line
+  GuestBook({required this.addMessage, required this.messages});
   final FutureOr<void> Function(String message) addMessage;
+  final List<GuestBookMessage> messages; // new
 
   @override
   _GuestBookState createState() => _GuestBookState();
@@ -216,7 +252,11 @@ class _GuestBookState extends State<GuestBook> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+        // to here.
+        Padding(
       padding: const EdgeInsets.all(8.0),
       child: Form(
         key: _formKey,
@@ -256,6 +296,14 @@ class _GuestBookState extends State<GuestBook> {
           ],
         ),
       ),
+    ),
+          // Modify from here
+          SizedBox(height: 8),
+          for (var message in widget.messages)
+            Paragraph('${message.name}: ${message.message}'),
+          SizedBox(height: 8),
+          // to here.
+    ],
     );
   }
 }
