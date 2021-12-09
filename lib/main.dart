@@ -1,16 +1,12 @@
-import 'dart:io';
-
 import 'package:firebase_core/firebase_core.dart'; // new
 import 'package:firebase_auth/firebase_auth.dart'; // new
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';           // new
-
-import 'src/authentication.dart';                  // new
+import 'package:provider/provider.dart'; // new
+import 'src/authentication.dart'; // new
 import 'src/widgets.dart';
-import 'dart:async';                                    // new
-import 'package:cloud_firestore/cloud_firestore.dart';  // new
-
+import 'dart:async'; // new
+import 'package:cloud_firestore/cloud_firestore.dart'; // new
 
 void main() {
   runApp(
@@ -109,8 +105,8 @@ class ApplicationState extends ChangeNotifier {
     init();
   }
 
-
-  Future<void> init() async { //초기화
+  Future<void> init() async {
+    //초기화
     await Firebase.initializeApp();
 
     FirebaseAuth.instance.userChanges().listen((user) {
@@ -124,10 +120,11 @@ class ApplicationState extends ChangeNotifier {
             .listen((snapshot) {
           _guestBookMessages = [];
           snapshot.docs.forEach((document) {
-            _guestBookMessages.add(
+            _guestBookMessages.add(  // 데이터베이스로부터 메세지 불러와서 guestBookMessage 리스트에 저장해준다.
               GuestBookMessage(
                 name: document.data()['name'] as String,
                 message: document.data()['text'] as String,
+
               ),
             );
           });
@@ -146,13 +143,16 @@ class ApplicationState extends ChangeNotifier {
   }
 
   ApplicationLoginState _loginState = ApplicationLoginState.loggedOut;
+
   ApplicationLoginState get loginState => _loginState;
 
   String? _email;
+
   String? get email => _email;
 
   StreamSubscription<QuerySnapshot>? _guestBookSubscription;
   List<GuestBookMessage> _guestBookMessages = [];
+
   List<GuestBookMessage> get guestBookMessages => _guestBookMessages;
 
   void startLoginFlow() {
@@ -161,12 +161,12 @@ class ApplicationState extends ChangeNotifier {
   }
 
   void verifyEmail(
-      String email,
-      void Function(FirebaseAuthException e) errorCallback,
-      ) async {
+    String email,
+    void Function(FirebaseAuthException e) errorCallback,
+  ) async {
     try {
       var methods =
-      await FirebaseAuth.instance.fetchSignInMethodsForEmail(email);
+          await FirebaseAuth.instance.fetchSignInMethodsForEmail(email);
       if (methods.contains('password')) {
         _loginState = ApplicationLoginState.password;
       } else {
@@ -180,10 +180,10 @@ class ApplicationState extends ChangeNotifier {
   }
 
   void signInWithEmailAndPassword(
-      String email,
-      String password,
-      void Function(FirebaseAuthException e) errorCallback,
-      ) async {
+    String email,
+    String password,
+    void Function(FirebaseAuthException e) errorCallback,
+  ) async {
     try {
       await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: email,
@@ -213,25 +213,29 @@ class ApplicationState extends ChangeNotifier {
   void signOut() {
     FirebaseAuth.instance.signOut();
   }
+
   // Add from here
-  Future<DocumentReference> addMessageToGuestBook(String message) {
+  Future<DocumentReference> addMessageToGuestBook(String message) { //데이터베이스에 채팅 전달하는 함수
     if (_loginState != ApplicationLoginState.loggedIn) {
       throw Exception('Must be logged in');
     }
 
-    return FirebaseFirestore.instance.collection('guestbook').add(<String, dynamic>{
+    return FirebaseFirestore.instance
+        .collection('guestbook') //firestore데이터 베이스 내에 guestbook이라는 콜렉션
+        .add(<String, dynamic>{
       'text': message,
       'timestamp': DateTime.now().millisecondsSinceEpoch,
       'name': FirebaseAuth.instance.currentUser!.displayName,
       'userId': FirebaseAuth.instance.currentUser!.uid,
-      'new': 'hello',
+      'new': 'hello', //와 같은 내용들을 추가해준다.
     });
   }
 // To here
 }
 
 class GuestBookMessage {
-  GuestBookMessage({required this.name, required this.message});
+  GuestBookMessage({required this.name, required this.message}); //생성자, {}: named argument
+
   final String name;
   final String message;
 }
@@ -239,71 +243,76 @@ class GuestBookMessage {
 class GuestBook extends StatefulWidget {
 // Modify the following line
   GuestBook({required this.addMessage, required this.messages});
+
   final FutureOr<void> Function(String message) addMessage;
   final List<GuestBookMessage> messages; // new
+
+
 
   @override
   _GuestBookState createState() => _GuestBookState();
 }
 
 class _GuestBookState extends State<GuestBook> {
-  final _formKey = GlobalKey<FormState>(debugLabel: '_GuestBookState'); //FormState의 키를 생성
+  final _formKey =
+      GlobalKey<FormState>(debugLabel: '_GuestBookState'); //FormState의 키를 생성
   final _controller = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
+
     return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
         // to here.
         Padding(
-      padding: const EdgeInsets.all(8.0),
-      child: Form(
-        key: _formKey,
-        child: Row(
-          children: [
-            Expanded(
-              child: TextFormField(
-                controller: _controller,
-                decoration: const InputDecoration(
-                  hintText: 'Leave a message',
+          padding: const EdgeInsets.all(8.0),
+          child: Form(
+            key: _formKey,
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: _controller,
+                    decoration: const InputDecoration(
+                      hintText: 'Leave a message',
+                    ),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Enter your message to continue';
+                      }
+                      return null;
+                    },
+                  ),
                 ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Enter your message to continue';
-                  }
-                  return null;
-                },
-              ),
+                SizedBox(width: 8),
+                StyledButton(
+                  onPressed: () async {
+                    //  print(_formKey.currentState);
+                    if (_formKey.currentState!.validate()) {
+                      await widget.addMessage(_controller.text);
+                      _controller.clear();
+                    }
+                  },
+                  child: Row(
+                    children: [
+                      Icon(Icons.send),
+                      SizedBox(width: 4),
+                      Text('SEND'),
+                    ],
+                  ),
+                ),
+              ],
             ),
-            SizedBox(width: 8),
-            StyledButton(
-              onPressed: () async {
-              //  print(_formKey.currentState);
-                if (_formKey.currentState!.validate()) {
-                await widget.addMessage(_controller.text);
-                _controller.clear();
-                }
-              },
-              child: Row(
-                children: [
-                  Icon(Icons.send),
-                  SizedBox(width: 4),
-                  Text('SEND'),
-                ],
-              ),
-            ),
-          ],
+          ),
         ),
-      ),
-    ),
-          // Modify from here
-          SizedBox(height: 8),
-          for (var message in widget.messages)
-            Paragraph('${message.name}: ${message.message}'),
-          SizedBox(height: 8),
-          // to here.
-    ],
+        // Modify from here
+        SizedBox(height: 8),
+        for (var message in widget.messages)
+          Paragraph('${message.name}: ${message.message}'),
+        SizedBox(height: 8),
+        // to here.
+      ],
     );
   }
 }
