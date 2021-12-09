@@ -219,7 +219,6 @@ class ApplicationState extends ChangeNotifier {
     if (_loginState != ApplicationLoginState.loggedIn) {
       throw Exception('Must be logged in');
     }
-
     return FirebaseFirestore.instance
         .collection('guestbook') //firestore데이터 베이스 내에 guestbook이라는 콜렉션
         .add(<String, dynamic>{
@@ -316,3 +315,4 @@ class _GuestBookState extends State<GuestBook> {
     );
   }
 }
+
